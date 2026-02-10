@@ -1,0 +1,9 @@
+ultralytics
+opencv-python
+streamlit
+supervision
+pandas
+numpy
+plotly
+python-dotenv
+pyyaml
