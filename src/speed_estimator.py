@@ -36,7 +36,10 @@ class SpeedEstimator:
         
         # Extract centers from boxes
         for i, (box, tracker_id) in enumerate(zip(detections.xyxy, detections.tracker_id)):
-            if tracker_id is not None:
+            # Skip if tracker_id is None
+            if tracker_id is None:
+                continue
+            if tracker_id not in current_positions:  # Keep first detection if duplicate tracking IDs
                 center_x = (box[0] + box[2]) / 2
                 center_y = (box[1] + box[3]) / 2
                 current_positions[tracker_id] = (center_x, center_y, box)

@@ -33,13 +33,14 @@ class TrafficAnalytics:
 
             # Track movement for risk
             center = [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2]
-            
-            # Check for violation (e.g., crossing stop line)
-            self.check_violations(tracker_id, center, class_id)
 
+            # Initialize vehicle history before checking violations
             if tracker_id not in self.vehicle_history:
                 self.vehicle_history[tracker_id] = []
             self.vehicle_history[tracker_id].append(center)
+            
+            # Check for violation (e.g., crossing stop line)
+            self.check_violations(tracker_id, center, class_id)
             
             # Keep only last 30 frames of history
             if len(self.vehicle_history[tracker_id]) > 30:
@@ -63,7 +64,10 @@ class TrafficAnalytics:
         
         if center[1] > stop_line_y * 0.95:  # Close to or past stop line
             # Check if this is a new violation (not already logged)
-            if tracker_id not in self.recorded_ids or self.vehicle_history[tracker_id][-1][1] > stop_line_y:
+            if (tracker_id not in self.recorded_ids or 
+                (tracker_id in self.vehicle_history and 
+                 len(self.vehicle_history[tracker_id]) > 0 and 
+                 self.vehicle_history[tracker_id][-1][1] > stop_line_y)):
                 self.log_violation(tracker_id, "crossing_stop_line", class_id)
 
     def log_violation(self, tracker_id, v_type, class_id):
