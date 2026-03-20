@@ -51,6 +51,9 @@ This opens the dashboard at `http://localhost:8501`
 | **Speed Arrows** | Show/Hide vectors | ON |
 | **Trajectories** | Show/Hide trails | ON |
 | **Sensitivity** | Collision threshold | 0.6 |
+| **Performance Profile** | Auto / Cloud Optimized / Balanced / High Accuracy | Auto |
+
+If hosted on Streamlit Cloud, set **Performance Profile** to **Cloud Optimized** for smoother FPS.
 
 ---
 

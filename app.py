@@ -17,6 +17,7 @@ from src.incident_detector import IncidentDetector
 from src.heatmap_generator import HeatmapGenerator
 import config
 import logging
+import os
 
 # Suppress harmless Tornado asyncio noise
 logging.getLogger("tornado.web").setLevel(logging.WARNING)
@@ -85,6 +86,18 @@ collision_sensitivity = st.sidebar.slider(
 )
 enable_decision_lab = st.sidebar.checkbox("Enable Decision Lab", value=True)
 
+st.sidebar.divider()
+st.sidebar.write("### ⚡ Performance")
+is_hosted_env = bool(os.getenv("STREAMLIT_SHARING_MODE")) or bool(
+    os.getenv("STREAMLIT_CLOUD")
+)
+performance_profile = st.sidebar.selectbox(
+    "Performance Profile",
+    ["Auto", "Cloud Optimized", "Balanced", "High Accuracy"],
+    index=0,
+    help="Use Cloud Optimized for smoother playback on Streamlit-hosted deployments.",
+)
+
 # Main Dashboard
 st.title(f"🏙️ {config.DASHBOARD_TITLE}")
 
@@ -108,20 +121,47 @@ def process_video(video_path):
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    # Reinitialize models with frame dimensions
+    # Reset all stateful runtime components per video to avoid unbounded growth across runs.
+    models["tracker"] = TrafficTracker()
+    models["analytics"] = TrafficAnalytics()
     models["collision_detector"] = CollisionDetector(frame_width, frame_height)
+    models["traffic_predictor"] = TrafficPredictor()
+    models["speed_estimator"] = SpeedEstimator(fps=fps)
+    models["incident_detector"] = IncidentDetector()
     models["heatmap_generator"] = HeatmapGenerator(frame_width, frame_height)
-    models["speed_estimator"].fps = fps
 
     frame_count = 0
     frame_display_count = 0
     last_frame_time = 0
-    target_frame_time = 1.0 / 15  # Limit display to 15 fps to prevent cache overflow
+    profile = performance_profile
+    if performance_profile == "Auto":
+        profile = "Cloud Optimized" if is_hosted_env else "Balanced"
 
-    metrics_update_interval = 10  # Update metrics every 10 frames
-    analysis_update_interval = 20  # Update analysis every 20 frames
+    if profile == "Cloud Optimized":
+        frame_skip = 2
+        target_display_fps = 8
+        resize_scale = 0.75
+        metrics_update_interval = 15
+        analysis_update_interval = 30
+    elif profile == "High Accuracy":
+        frame_skip = 1
+        target_display_fps = 15
+        resize_scale = 1.0
+        metrics_update_interval = 10
+        analysis_update_interval = 20
+    else:  # Balanced
+        frame_skip = 1
+        target_display_fps = 12
+        resize_scale = 0.85
+        metrics_update_interval = 12
+        analysis_update_interval = 24
+
+    target_frame_time = 1.0 / target_display_fps
     last_metrics_update = 0
     last_analysis_update = 0
+
+    # Keep history bounded so pandas operations remain fast over long sessions.
+    max_history_rows = 1500
 
     # Placeholder containers
     frame_placeholder = st.empty()
@@ -137,8 +177,20 @@ def process_video(video_path):
             break
 
         frame_count += 1
+        if frame_skip > 1 and (frame_count % frame_skip != 0):
+            continue
+
         frame_time = frame_count / fps
         frame_times.append(time.time())
+
+        if resize_scale < 1.0:
+            frame = cv2.resize(
+                frame,
+                None,
+                fx=resize_scale,
+                fy=resize_scale,
+                interpolation=cv2.INTER_AREA,
+            )
 
         try:
             # 1. Detection
@@ -147,14 +199,14 @@ def process_video(video_path):
 
             if len(detections) == 0:
                 # No detections, still show the frame but process it
-                display_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 # Only display if enough time has passed
                 current_time = time.time()
                 if current_time - last_frame_time >= target_frame_time:
-                    frame_placeholder.image(display_frame, use_container_width=True)
+                    frame_placeholder.image(
+                        frame, channels="BGR", use_container_width=True
+                    )
                     last_frame_time = current_time
                     frame_display_count += 1
-                time.sleep(0.01)  # Small delay to prevent overwhelming Streamlit
                 continue
 
             # Add class names
@@ -218,21 +270,21 @@ def process_video(video_path):
                     annotated_frame, use_temporal=False
                 )
 
-            # Convert for display
-            display_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-
             # Display frame with throttling to prevent media cache overflow
             current_time = time.time()
             if current_time - last_frame_time >= target_frame_time:
-                frame_placeholder.image(display_frame, use_container_width=True)
+                frame_placeholder.image(
+                    annotated_frame, channels="BGR", use_container_width=True
+                )
                 last_frame_time = current_time
                 frame_display_count += 1
 
-            time.sleep(0.01)  # Small delay to allow Streamlit to serve media
+            metrics_were_updated = False
 
             # Update Metrics periodically (not every frame to prevent flickering)
             if frame_count - last_metrics_update >= metrics_update_interval:
                 last_metrics_update = frame_count
+                metrics_were_updated = True
 
                 risk_score = models["analytics"].calculate_risk_index()
                 emissions = models["analytics"].estimate_emissions()
@@ -547,7 +599,7 @@ def process_video(video_path):
                             st.info("Decision Lab is disabled from sidebar settings")
 
             # Update history periodically
-            if frame_count - last_metrics_update <= metrics_update_interval:
+            if metrics_were_updated:
                 risk_score = models["analytics"].calculate_risk_index()
                 emissions = models["analytics"].estimate_emissions()
                 vehicle_count = len(models["analytics"].vehicle_history)
@@ -564,6 +616,10 @@ def process_video(video_path):
                     [st.session_state.history, pd.DataFrame([new_row])],
                     ignore_index=True,
                 )
+                if len(st.session_state.history) > max_history_rows:
+                    st.session_state.history = st.session_state.history.tail(
+                        max_history_rows
+                    ).reset_index(drop=True)
 
         except Exception as e:
             # Log error but continue
@@ -572,13 +628,11 @@ def process_video(video_path):
 
             traceback.print_exc()
             # Still display the frame with throttling
-            display_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             current_time = time.time()
             if current_time - last_frame_time >= target_frame_time:
-                frame_placeholder.image(display_frame, use_container_width=True)
+                frame_placeholder.image(frame, channels="BGR", use_container_width=True)
                 last_frame_time = current_time
                 frame_display_count += 1
-            time.sleep(0.01)
             continue
 
     cap.release()
