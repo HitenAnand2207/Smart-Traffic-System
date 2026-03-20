@@ -52,8 +52,10 @@ This opens the dashboard at `http://localhost:8501`
 | **Trajectories** | Show/Hide trails | ON |
 | **Sensitivity** | Collision threshold | 0.6 |
 | **Performance Profile** | Auto / Cloud Optimized / Balanced / High Accuracy | Auto |
+| **Cloud Lite Mode** | ON / OFF | ON (hosted) |
 
 If hosted on Streamlit Cloud, set **Performance Profile** to **Cloud Optimized** for smoother FPS.
+For best hosted stability, keep **Cloud Lite Mode** enabled.
 
 ---
 
@@ -64,6 +66,7 @@ If hosted on Streamlit Cloud, set **Performance Profile** to **Cloud Optimized**
 - **🚗 Active Vehicles**: How many vehicles are currently detected
 - **⚡ Avg Speed**: Fleet average speed in meters/second
 - **⚠️ Collision Alerts**: Number of high-risk collision warnings
+- **🎞️ Processing FPS**: Real-time processing speed (with display FPS in delta)
 
 ### 5 Analysis Tabs
 
@@ -293,6 +296,8 @@ smart-traffic/
 2. Disable trajectory display
 3. Increase collision sensitivity (fewer alerts = less processing)
 4. Use lower resolution videos (720p instead of 1080p)
+5. Use **Performance Profile = Cloud Optimized**
+6. Turn **Cloud Lite Mode = ON** for hosted apps
 
 ### For Better Accuracy
 1. Use well-lit traffic footage

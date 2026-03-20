@@ -97,6 +97,11 @@ performance_profile = st.sidebar.selectbox(
     index=0,
     help="Use Cloud Optimized for smoother playback on Streamlit-hosted deployments.",
 )
+cloud_lite_mode = st.sidebar.checkbox(
+    "Cloud Lite Mode",
+    value=is_hosted_env,
+    help="Disables expensive overlays and Decision Lab for better hosted FPS.",
+)
 
 # Main Dashboard
 st.title(f"🏙️ {config.DASHBOARD_TITLE}")
@@ -131,8 +136,13 @@ def process_video(video_path):
     models["heatmap_generator"] = HeatmapGenerator(frame_width, frame_height)
 
     frame_count = 0
+    processed_frame_count = 0
     frame_display_count = 0
     last_frame_time = 0
+    session_start_time = time.time()
+    fps_window_start = session_start_time
+    fps_window_frames = 0
+    processing_fps = 0.0
     profile = performance_profile
     if performance_profile == "Auto":
         profile = "Cloud Optimized" if is_hosted_env else "Balanced"
@@ -157,6 +167,17 @@ def process_video(video_path):
         analysis_update_interval = 24
 
     target_frame_time = 1.0 / target_display_fps
+
+    use_heatmap = enable_heatmap
+    use_speed_display = enable_speed_display
+    use_trajectory = enable_trajectory
+    use_decision_lab = enable_decision_lab
+    if cloud_lite_mode:
+        use_heatmap = False
+        use_speed_display = False
+        use_trajectory = False
+        use_decision_lab = False
+
     last_metrics_update = 0
     last_analysis_update = 0
 
@@ -182,6 +203,15 @@ def process_video(video_path):
 
         frame_time = frame_count / fps
         frame_times.append(time.time())
+        processed_frame_count += 1
+        fps_window_frames += 1
+
+        now = time.time()
+        window_elapsed = now - fps_window_start
+        if window_elapsed >= 1.0:
+            processing_fps = fps_window_frames / window_elapsed
+            fps_window_frames = 0
+            fps_window_start = now
 
         if resize_scale < 1.0:
             frame = cv2.resize(
@@ -244,11 +274,11 @@ def process_video(video_path):
 
             # 9. Visualization
             annotated_frame = models["tracker"].annotate_frame(
-                frame, detections, show_trajectory=enable_trajectory
+                frame, detections, show_trajectory=use_trajectory
             )
 
             # Add speed vectors if enabled
-            if enable_speed_display:
+            if use_speed_display:
                 annotated_frame = models["speed_estimator"].draw_speed_annotations(
                     annotated_frame, detections
                 )
@@ -265,7 +295,7 @@ def process_video(video_path):
                 collision_history.extend(collision_alerts)
 
             # Add heatmap overlay
-            if enable_heatmap:
+            if use_heatmap:
                 annotated_frame = models["heatmap_generator"].render_heatmap_on_frame(
                     annotated_frame, use_temporal=False
                 )
@@ -293,7 +323,9 @@ def process_video(video_path):
                 collision_alerts = models["collision_detector"].get_alerts()
 
                 with metrics_container.container():
-                    metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+                    metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = (
+                        st.columns(5)
+                    )
 
                     with metric_col1:
                         st.metric(
@@ -330,6 +362,15 @@ def process_video(video_path):
                             "⚠️ Collision Alerts",
                             collision_risk_count,
                             delta=f"High Risk: {collision_risk_count > 0}",
+                        )
+
+                    with metric_col5:
+                        elapsed = max(time.time() - session_start_time, 1e-6)
+                        display_fps = frame_display_count / elapsed
+                        st.metric(
+                            "🎞️ Processing FPS",
+                            f"{processing_fps:.1f}",
+                            delta=f"Display: {display_fps:.1f}",
                         )
 
             # Update analysis tabs periodically
@@ -509,7 +550,7 @@ def process_video(video_path):
 
                     # Decision Lab tab
                     with tab6.container():
-                        if enable_decision_lab:
+                        if use_decision_lab:
                             col1, col2 = st.columns(2)
 
                             with col1:
@@ -596,7 +637,9 @@ def process_video(video_path):
                                 sim_df = pd.DataFrame(what_if["scenarios"])
                                 st.dataframe(sim_df, use_container_width=True)
                         else:
-                            st.info("Decision Lab is disabled from sidebar settings")
+                            st.info(
+                                "Decision Lab is disabled (sidebar or Cloud Lite Mode)"
+                            )
 
             # Update history periodically
             if metrics_were_updated:
@@ -655,6 +698,12 @@ def process_video(video_path):
         )
     with col5:
         st.metric("Frames Processed", frame_count)
+
+    elapsed_total = max(time.time() - session_start_time, 1e-6)
+    avg_processing_fps = processed_frame_count / elapsed_total
+    st.caption(
+        f"Average processing FPS: {avg_processing_fps:.1f} | Display target FPS: {target_display_fps}"
+    )
 
 
 # Main Execution
