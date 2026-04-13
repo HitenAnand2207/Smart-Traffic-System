@@ -20,6 +20,7 @@ The system analyzes traffic video streams in near real time and provides:
 - Heatmap-based congestion hotspot analysis
 - Emission estimation and explainable risk breakdown
 - Decision Lab with near-miss summary and signal what-if simulation
+- Session export tools for CSV/JSON reporting and dashboard reset
 - Performance profiles for local and hosted Streamlit environments
 
 ## Dashboard Modes

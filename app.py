@@ -115,6 +115,43 @@ if "collision_alerts" not in st.session_state:
     st.session_state.collision_alerts = []
 
 
+def build_session_snapshot():
+    """Assemble the current session state for export and reporting."""
+    stats = models["analytics"].get_statistics()
+    incidents = models["incident_detector"].get_incident_history()
+    collision_alerts = models["collision_detector"].get_alerts()
+    forecast = models["traffic_predictor"].get_congestion_forecast()
+    confidence = models["traffic_predictor"].get_prediction_confidence()
+
+    return {
+        "statistics": stats,
+        "incidents": incidents,
+        "collision_alerts": collision_alerts,
+        "forecast": forecast,
+        "confidence": confidence,
+    }
+
+
+def dataframe_to_csv_bytes(dataframe: pd.DataFrame) -> bytes:
+    """Convert a dataframe to UTF-8 CSV bytes for download."""
+    return dataframe.to_csv(index=False).encode("utf-8")
+
+
+def json_bytes(payload) -> bytes:
+    """Serialize a payload to pretty-printed JSON bytes for download."""
+    import json
+
+    return json.dumps(payload, indent=2, default=str).encode("utf-8")
+
+
+def reset_session_outputs():
+    """Clear cached analysis outputs from the current session."""
+    st.session_state.history = pd.DataFrame(
+        columns=["Time", "Risk", "Pollution", "Vehicle_Count", "Speed"]
+    )
+    st.session_state.collision_alerts = []
+
+
 def process_video(video_path):
     """Enhanced video processing with all new features."""
 
@@ -705,6 +742,29 @@ def process_video(video_path):
         f"Average processing FPS: {avg_processing_fps:.1f} | Display target FPS: {target_display_fps}"
     )
 
+    session_snapshot = build_session_snapshot()
+    export_col1, export_col2, export_col3 = st.columns(3)
+    with export_col1:
+        st.download_button(
+            "⬇️ Download Session History CSV",
+            data=dataframe_to_csv_bytes(st.session_state.history),
+            file_name="traffic_session_history.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+    with export_col2:
+        st.download_button(
+            "⬇️ Download Session Report JSON",
+            data=json_bytes(session_snapshot),
+            file_name="traffic_session_report.json",
+            mime="application/json",
+            use_container_width=True,
+        )
+    with export_col3:
+        if st.button("♻️ Reset Session Data", use_container_width=True):
+            reset_session_outputs()
+            st.success("Session data cleared. Run a new analysis to repopulate the dashboard.")
+
 
 # Main Execution
 
@@ -724,6 +784,26 @@ elif app_mode == "Statistics Dashboard":
     st.subheader("📊 Performance Analytics")
 
     if not st.session_state.history.empty:
+        report_col1, report_col2 = st.columns(2)
+
+        with report_col1:
+            st.download_button(
+                "⬇️ Export Statistics CSV",
+                data=dataframe_to_csv_bytes(st.session_state.history),
+                file_name="traffic_statistics.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+
+        with report_col2:
+            st.download_button(
+                "⬇️ Export Statistics JSON",
+                data=json_bytes(build_session_snapshot()),
+                file_name="traffic_statistics.json",
+                mime="application/json",
+                use_container_width=True,
+            )
+
         col1, col2, col3 = st.columns(3)
 
         with col1:
@@ -745,6 +825,29 @@ elif app_mode == "Statistics Dashboard":
             st.caption("Average Speed Over Time")
     else:
         st.info("Run live analysis first to see statistics")
+
+    st.divider()
+    st.subheader("🧾 Incident Report")
+    incident_history = models["incident_detector"].get_incident_history()
+    if incident_history:
+        incident_df = pd.DataFrame(incident_history)
+        st.dataframe(incident_df, use_container_width=True)
+    else:
+        st.info("No incidents recorded yet")
+
+    reset_col1, reset_col2 = st.columns(2)
+    with reset_col1:
+        if st.button("Reset Dashboard Data", use_container_width=True):
+            reset_session_outputs()
+            st.success("Dashboard history cleared.")
+    with reset_col2:
+        st.download_button(
+            "Download Incident Report JSON",
+            data=json_bytes(incident_history),
+            file_name="incident_report.json",
+            mime="application/json",
+            use_container_width=True,
+        )
 
 else:
     st.info(f"📊 Selected mode: {app_mode}")

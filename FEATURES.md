@@ -283,9 +283,9 @@ streamlit run app.py
 - Heatmap overlays
 
 ### Data Exports
-- Session statistics and metrics
+- Session statistics and metrics via CSV/JSON download buttons
 - Violation logs
-- Incident reports
+- Incident reports with tabular review in the Statistics Dashboard
 - Vehicle trajectories
 - Performance analytics
 
