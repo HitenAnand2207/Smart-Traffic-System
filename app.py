@@ -51,12 +51,23 @@ def load_models():
 
 models = load_models()
 
+MODE_GUIDANCE = {
+    "Live Dashboard": "Best for a general overview of traffic conditions, alerts, and live frame analysis.",
+    "Collision Alerts": "Focuses on nearby vehicles and collision warnings.",
+    "Traffic Prediction": "Highlights congestion trends, anomalies, and short-term forecasts.",
+    "Speed Analysis": "Shows speed distribution and vehicle movement details.",
+    "Incident Report": "Summarizes stalled vehicles, erratic movement, and accident-like events.",
+    "Heatmap Analytics": "Highlights busy areas and recurring congestion hotspots.",
+    "Statistics Dashboard": "Shows exportable history, incidents, and performance trends.",
+}
+
 # Sidebar
 st.sidebar.title("🚦 Smart Traffic System")
+st.sidebar.caption("Choose a mode, upload a video, and review the results below.")
 st.sidebar.divider()
 
 app_mode = st.sidebar.selectbox(
-    "📊 Choose Mode",
+    "📊 Analysis Mode",
     [
         "Live Dashboard",
         "Collision Alerts",
@@ -68,23 +79,37 @@ app_mode = st.sidebar.selectbox(
     ],
 )
 
-source_option = st.sidebar.radio("📹 Input Source", ["Upload Video", "Webcam (Demo)"])
+source_option = st.sidebar.radio("📹 Video Source", ["Upload Video", "Webcam (Demo)"])
 
 uploaded_file = None
 if source_option == "Upload Video":
     uploaded_file = st.sidebar.file_uploader(
-        "Upload Traffic Video", type=["mp4", "avi", "mov"]
+        "Upload a traffic video", type=["mp4", "avi", "mov"], help="Use a short video clip first if you want faster feedback."
     )
+
+with st.sidebar.expander("How to use this dashboard", expanded=True):
+    st.write("1. Select an analysis mode.")
+    st.write("2. Upload a traffic video.")
+    st.write("3. Review alerts, trends, and exports in the main panel.")
+    st.caption(MODE_GUIDANCE[app_mode])
 
 st.sidebar.divider()
 st.sidebar.write("### 🎛️ System Settings")
-enable_heatmap = st.sidebar.checkbox("Enable Heatmap Overlay", value=True)
-enable_speed_display = st.sidebar.checkbox("Show Speed Vectors", value=True)
-enable_trajectory = st.sidebar.checkbox("Show Vehicle Trajectories", value=True)
-collision_sensitivity = st.sidebar.slider(
-    "Collision Detection Sensitivity", 0.3, 1.0, 0.6
+enable_heatmap = st.sidebar.checkbox(
+    "Show heatmap overlay", value=True, help="Highlights busy regions on the frame."
 )
-enable_decision_lab = st.sidebar.checkbox("Enable Decision Lab", value=True)
+enable_speed_display = st.sidebar.checkbox(
+    "Show speed vectors", value=True, help="Draws movement direction arrows over vehicles."
+)
+enable_trajectory = st.sidebar.checkbox(
+    "Show vehicle trails", value=True, help="Displays recent motion paths for tracked vehicles."
+)
+collision_sensitivity = st.sidebar.slider(
+    "Collision sensitivity", 0.3, 1.0, 0.6, help="Lower values show more warnings."
+)
+enable_decision_lab = st.sidebar.checkbox(
+    "Show decision lab", value=True, help="Includes risk breakdown and what-if signal timing."
+)
 
 st.sidebar.divider()
 st.sidebar.write("### ⚡ Performance")
@@ -105,6 +130,7 @@ cloud_lite_mode = st.sidebar.checkbox(
 
 # Main Dashboard
 st.title(f"🏙️ {config.DASHBOARD_TITLE}")
+st.caption(MODE_GUIDANCE[app_mode])
 
 # State management
 if "history" not in st.session_state:
@@ -851,6 +877,16 @@ elif app_mode == "Statistics Dashboard":
 
 else:
     st.info(f"📊 Selected mode: {app_mode}")
+    st.write(MODE_GUIDANCE[app_mode])
+
+    quick_col1, quick_col2, quick_col3 = st.columns(3)
+    with quick_col1:
+        st.metric("Step 1", "Choose mode")
+    with quick_col2:
+        st.metric("Step 2", "Upload video")
+    with quick_col3:
+        st.metric("Step 3", "Review results")
+
     if uploaded_file is not None:
         tfile = tempfile.NamedTemporaryFile(delete=False)
         tfile.write(uploaded_file.read())
@@ -858,4 +894,4 @@ else:
         # You can customize processing per mode here
         process_video(tfile.name)
     else:
-        st.info("📹 Please upload a video file to analyze")
+        st.info("Upload a video to start the analysis. If you are testing the app, a short clip will give the fastest feedback.")
