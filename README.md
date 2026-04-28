@@ -1,31 +1,66 @@
 # Smart Traffic Analytics System
 
-An AI-powered traffic monitoring and decision-support dashboard built with YOLOv8, OpenCV, Supervision ByteTrack, and Streamlit.
+Smart Traffic Analytics System is an AI-powered traffic monitoring and decision-support dashboard. It processes traffic video streams to detect vehicles, track movement, estimate speed, surface safety risks, summarize congestion, and generate advisory analytics for operators and planners.
 
-The system analyzes traffic video streams in near real time and provides:
-- vehicle detection and tracking
-- safety and risk signals
-- collision and incident alerts
-- traffic trend forecasting
-- congestion heatmaps
-- speed analytics
-- advisory signal recommendations
+## What The Project Does
 
-## Highlights
+The application turns a traffic video or webcam feed into a live analytics dashboard. It can:
+
+- detect vehicles in each frame
+- track vehicles across time with persistent IDs
+- estimate speed and movement direction
+- flag collision risks and suspicious vehicle interactions
+- detect incidents such as stalled vehicles or erratic motion
+- generate heatmaps for congestion hotspots
+- forecast near-term traffic trends
+- produce advisory signal recommendations and summary reports
+
+## Why It Exists
+
+This project is meant to support traffic analysis, not replace a traffic operator. The goal is to provide a practical tool for:
+
+- observing traffic conditions in near real time
+- understanding congestion patterns and bottlenecks
+- identifying safety risks early
+- creating data-driven summaries for review and planning
+- experimenting with traffic decision support in a controlled environment
+
+The recommendations in the dashboard are advisory only and should not be treated as direct traffic-control commands.
+
+## Main Capabilities
 
 - Real-time detection and tracking for cars, buses, trucks, motorcycles, and bicycles
-- Collision risk scoring between tracked vehicles
-- Incident detection (stalled vehicles, erratic behavior, potential accidents)
-- Traffic forecasting with anomaly detection and confidence scoring
-- Heatmap-based congestion hotspot analysis
-- Emission estimation and explainable risk breakdown
-- Decision Lab with near-miss summary and signal what-if simulation
-- Session export tools for CSV/JSON reporting and dashboard reset
-- Performance profiles for local and hosted Streamlit environments
+- Collision risk scoring between nearby tracked vehicles
+- Incident detection for stalled vehicles, sudden motion changes, and accident-like patterns
+- Short-horizon traffic forecasting with anomaly and confidence indicators
+- Congestion heatmaps and spatial hotspot analysis
+- Speed analytics with distribution charts and per-vehicle estimates
+- Session export tools for CSV and JSON reporting
+- Performance profiles for local and hosted Streamlit deployments
+
+## Tech Stack And Purpose
+
+| Technology | Purpose |
+| --- | --- |
+| Python | Core application language and analytics logic |
+| Streamlit | Web dashboard UI, controls, metrics, and reporting views |
+| Ultralytics YOLOv8 | Vehicle detection in video frames |
+| OpenCV | Video input, frame handling, and image processing |
+| Supervision / ByteTrack | Multi-object tracking with persistent IDs |
+| NumPy | Efficient numerical operations on frame and metric data |
+| Pandas | Session history, tabular analytics, and report exports |
+| SciPy | Supporting statistical and mathematical calculations |
+| scikit-learn | Lightweight machine-learning utilities used in analytics workflows |
+| Plotly | Interactive charts and dashboards |
+| Matplotlib | Additional plotting support for analytics views |
+| Altair | Alternative charting and visualization layer |
+| python-dotenv | Environment variable loading for local configuration |
+| PyYAML | Structured configuration support |
 
 ## Dashboard Modes
 
-The sidebar mode selector supports:
+The sidebar mode selector includes:
+
 - Live Dashboard
 - Collision Alerts
 - Traffic Prediction
@@ -33,16 +68,6 @@ The sidebar mode selector supports:
 - Incident Report
 - Heatmap Analytics
 - Statistics Dashboard
-
-## Tech Stack
-
-- Python 3.11
-- Streamlit
-- Ultralytics YOLOv8
-- OpenCV
-- Supervision (ByteTrack)
-- NumPy, Pandas, SciPy, scikit-learn
-- Plotly, Matplotlib, Altair
 
 ## Project Structure
 
@@ -70,6 +95,14 @@ smart-traffic/
 |- report_assets/
 ```
 
+## How It Works
+
+1. A video or webcam stream is loaded into the dashboard.
+2. YOLOv8 detects supported vehicle classes in each frame.
+3. ByteTrack keeps vehicle identities consistent across frames.
+4. The analytics modules calculate risk, speed, incident, prediction, and heatmap outputs.
+5. Streamlit renders the live results, charts, alerts, and downloadable summaries.
+
 ## Quick Start
 
 ### 1. Create and activate a virtual environment
@@ -93,103 +126,63 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Open the app in your browser (typically http://localhost:8501).
+Open the app in your browser, typically at http://localhost:8501.
 
 ## Input Options
 
-- Upload Video (mp4, avi, mov)
-- Webcam (Demo)
-
-Recommended for reproducible analysis: use uploaded video files.
-
-## Key Features Explained
-
-### 1) Detection and Tracking
-
-- YOLOv8 detects supported vehicle classes
-- ByteTrack assigns persistent IDs across frames
-- Optional trajectory rendering visualizes movement paths
-
-### 2) Risk and Safety
-
-- Composite risk index (0 to 100)
-- Stop-line crossing violation logging
-- Risk decomposition by component in Decision Lab
-
-### 3) Collision Alerts
-
-- Pairwise collision-risk scoring from trajectory and relative motion
-- On-frame warning overlays for high-risk pairs
-- Near-miss summary with TTC-style approximation
-
-### 4) Incident Detection
-
-- Flags stalled vehicles, sudden speed changes, and potential accident patterns
-- Reports severity-level incidents in dashboard alerts
-
-### 5) Traffic Forecasting
-
-- Short-horizon prediction from rolling history
-- Congestion trend status and anomaly flags
-- Forecast confidence score with explanations
-
-### 6) Speed Analytics
-
-- Per-vehicle speed estimation from tracked trajectories
-- Average speed and histogram-based distribution
-- Optional speed vectors overlaid on frames
-
-### 7) Heatmap Analytics
-
-- Density accumulation on a grid
-- Real-time hotspots and region-level congestion indicators
-
-### 8) Signal Recommendation (Advisory)
-
-- Rule-based recommendations based on active vs average traffic levels
-- Decision Lab what-if simulator for green-time strategy comparison
-
-## Performance Tuning
-
-Sidebar controls include:
-- Performance Profile: Auto, Cloud Optimized, Balanced, High Accuracy
-- Cloud Lite Mode: disables expensive overlays for better hosted FPS
-
-Suggested defaults:
-- Local machine: Balanced or High Accuracy
-- Hosted deployment: Cloud Optimized + Cloud Lite Mode
+- Upload Video: recommended for repeatable analysis and reporting
+- Webcam (Demo): useful for quick live testing
 
 ## Configuration
 
-Edit config values in config.py, including:
+Edit config.py to customize:
+
 - model path and detection thresholds
 - vehicle class IDs
 - emission factors
-- stop-line location
+- stop-line position
 - dashboard title and log directory
+
+## Performance Tuning
+
+Use the sidebar controls to adjust runtime behavior:
+
+- Performance Profile: Auto, Cloud Optimized, Balanced, High Accuracy
+- Cloud Lite Mode: disables expensive overlays for smoother hosted playback
+
+Suggested defaults:
+
+- Local machine: Balanced or High Accuracy
+- Hosted deployment: Cloud Optimized with Cloud Lite Mode enabled
 
 ## Troubleshooting
 
 ### Model loading issues
-- Ensure requirements are installed and internet is available on first model pull.
-- Verify model file exists at models/yolov8n.pt.
+
+- Make sure dependencies are installed.
+- Verify that models/yolov8n.pt exists.
+- Allow the first run to download any missing model artifacts if needed.
 
 ### Slow performance
-- Switch to Cloud Optimized profile.
+
+- Switch to Cloud Optimized.
 - Enable Cloud Lite Mode.
-- Disable heatmap, trajectory, or speed vectors.
-- Use lower-resolution input video.
+- Disable heatmap, trajectory, or speed-vector overlays.
+- Use a lower-resolution input video.
 
 ### No detections
+
 - Check video quality and lighting.
-- Lower confidence threshold in config.py.
+- Lower the confidence threshold in config.py.
 
 ### Streamlit command not found
-- Activate your virtual environment before running the app.
+
+- Activate the virtual environment before launching the app.
 
 ## Additional Documentation
 
 For deeper details, see:
+
 - QUICKSTART.md
 - FEATURES.md
 - ARCHITECTURE.md
@@ -199,5 +192,5 @@ For deeper details, see:
 
 ## Notes
 
-- Current recommendations are advisory and should not be treated as direct traffic-control commands.
 - The system is intended for analytics, experimentation, and decision support workflows.
+- Results depend on video quality, camera angle, and scene complexity.
